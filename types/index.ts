@@ -20,7 +20,7 @@ export interface TimeSlot {
 export interface AppointmentBooking {
   doctorId: string;
   patientName: string;
-  email: string;
+  patientEmail: string;
   date: string;
   timeSlot: string;
 }

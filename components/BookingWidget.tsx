@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AppointmentBooking } from '@/types';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { Doctor } from '@/types';
@@ -9,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 interface BookingWidgetProps {
   doctor: Doctor;
@@ -19,6 +22,8 @@ export function BookingWidget({ doctor }: BookingWidgetProps) {
   const [selectedSlot, setSelectedSlot] = useState<string>('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isBooked, setIsBooked] = useState(false);
+  const [patientName, setPatientName] = useState('');
+  const [patientEmail, setPatientEmail] = useState('');
 
   // Available time slots
   const timeSlots = [
@@ -38,17 +43,45 @@ export function BookingWidget({ doctor }: BookingWidgetProps) {
     setSelectedSlot(slot);
   };
 
-  const handleConfirmBooking = () => {
-    if (selectedDate && selectedSlot) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleConfirmBooking = async () => {
+    if (!selectedDate || !selectedSlot || !patientEmail || !patientName) return;
+    setIsSubmitting(true);
+    setError(null);
+    const payload: AppointmentBooking = {
+      doctorId: doctor.id,
+      patientName: patientName, // Replace with actual patient name input if available
+      patientEmail: patientEmail, // Replace with actual patient email input if available
+      date: selectedDate.toISOString(),
+      timeSlot: selectedSlot,
+    };
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to book appointment');
+      }
       setIsBooked(true);
-      // Reset after 3 seconds
       setTimeout(() => {
         setIsBooked(false);
         setSelectedDate(undefined);
         setSelectedSlot('');
+        setPatientName('');
+        setPatientEmail('');
       }, 3000);
+    } catch (err: unknown) {
+      if (err instanceof Error) setError(err.message);
+      else setError('Unknown error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  } 
 
   if (isBooked) {
     return (
@@ -129,6 +162,48 @@ export function BookingWidget({ doctor }: BookingWidgetProps) {
           </div>
         )}
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="patientName">Full Name</Label>
+              <Input
+                id="patientName"
+                type="text"
+                placeholder="Enter your full name"
+                value={patientName}
+                onChange={(e) => setPatientName(e.target.value)}
+                required
+                className="transition-all duration-200 focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={patientEmail}
+                onChange={(e) => setPatientEmail(e.target.value)}
+                required
+                className="transition-all duration-200 focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          {/* <Button
+            type="submit"
+            disabled={!selectedSlot || !patientName || !email || isSubmitting}
+            className="w-full py-3 text-base transition-all duration-200 hover:scale-105 disabled:hover:scale-100"
+          >
+            {isSubmitting ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Booking Appointment...</span>
+              </div>
+            ) : (
+              'Confirm Appointment'
+            )}
+          </Button> */}
+
         {/* Consultation Fee */}
         <div className="bg-muted/50 rounded-lg p-4">
           <div className="flex justify-between items-center">
@@ -137,6 +212,10 @@ export function BookingWidget({ doctor }: BookingWidgetProps) {
           </div>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="text-red-500 text-sm text-center">{error}</div>
+        )}
         {/* Action Buttons */}
         <div className="flex space-x-3">
           <Button 
@@ -145,16 +224,18 @@ export function BookingWidget({ doctor }: BookingWidgetProps) {
             onClick={() => {
               setSelectedDate(undefined);
               setSelectedSlot('');
+              setError(null);
             }}
+            disabled={!!patientEmail}
           >
             Cancel
           </Button>
           <Button 
             className="flex-1"
-            disabled={!selectedDate || !selectedSlot}
+            disabled={!selectedDate || !selectedSlot || patientName === '' || patientEmail === '' || isSubmitting}
             onClick={handleConfirmBooking}
           >
-            Confirm Booking
+            {isSubmitting ? 'Booking...' : 'Confirm Booking'}
           </Button>
         </div>
       </CardContent>

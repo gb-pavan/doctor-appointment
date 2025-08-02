@@ -11,7 +11,7 @@ import { CheckCircle, Calendar, User, Mail } from 'lucide-react';
 
 interface AppointmentFormProps {
   doctor: Doctor;
-  onSubmit: (booking: AppointmentBooking) => void;
+  onSubmit?: (booking: AppointmentBooking) => void;
 }
 
 export function AppointmentForm({ doctor, onSubmit }: AppointmentFormProps) {
@@ -33,7 +33,7 @@ export function AppointmentForm({ doctor, onSubmit }: AppointmentFormProps) {
     const booking: AppointmentBooking = {
       doctorId: doctor.id,
       patientName,
-      email,
+      patientEmail: email,
       date: selectedSlotData.date,
       timeSlot: selectedSlotData.time,
     };
@@ -41,7 +41,7 @@ export function AppointmentForm({ doctor, onSubmit }: AppointmentFormProps) {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    onSubmit(booking);
+    onSubmit?.(booking);
     setIsSubmitted(true);
     setIsSubmitting(false);
   };
